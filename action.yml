@@ -1,0 +1,32 @@
+name: 'Update a AWS ECS Service or Task'
+description: 'Update a AWS ECS Service or Task'
+inputs:
+  no-deploy:
+    description: "Only update task definition when true"
+    required: false
+    default: false
+runs:
+  using: "composite"
+  steps: 
+    - name: Install AWS CLI
+      uses: chrislennon/action-aws-cli@v1.1
+    - name: Get current task definition
+      run: |
+        aws ecs describe-task-definition \
+          --task-definition ${TASK_DEFINITION} \
+          --query taskDefinition > task-definition.json
+    - name: Render task definition
+      id: render-task-definition
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: task-definition.json
+        container-name: ${CONTAINER_NAME}
+        image: ${IMAGE}
+    - name: Deploy task definition
+      if: ${{ ! inputs.no-deploy }}
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.render-task-definition.outputs.task-definition }}
+        service: ${SERVICE}
+        cluster: ${CLUSTER}
+        wait-for-service-stability: true
